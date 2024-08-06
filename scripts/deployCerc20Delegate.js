@@ -5,14 +5,12 @@ async function main() {
 
   console.log("Deploying contracts with the account:", deployer.address);
 
-  const ComptrollerG7 = await hre.ethers.getContractFactory("ComptrollerG7");
-  const comptrollerG7 = await ComptrollerG7.deploy(
-    "0x507f0F5E58d21f07d133722e038067248fe4ecBE"
-  );
+  const CErc20Delegate = await hre.ethers.getContractFactory("CErc20Delegate");
+  const cErc20Delegate = await CErc20Delegate.deploy();
 
-  await comptrollerG7.deployed();
+  await cErc20Delegate.deployed();
 
-  console.log("ComptrollerG7 deployed to:", comptrollerG7.address);
+  console.log("CErc20Delegate deployed to:", cErc20Delegate.address);
 }
 
 main()

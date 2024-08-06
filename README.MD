@@ -221,4 +221,4 @@ Configure Comptroller
 
 ## Addresses
 
-The addresses of the contracts are in the [addresses.MD](addresses.MD) file.
+The addresses of the contracts are in the [ADDRESSES.MD](ADDRESSES.MD) file.

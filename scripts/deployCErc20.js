@@ -6,7 +6,7 @@ async function main() {
   console.log("Deploying contracts with the account:", deployer.address);
 
   const CErc20 = await hre.ethers.getContractFactory("CErc20");
-  const cErc20 = await CErc20.deploy(deployer.address);
+  const cErc20 = await CErc20.deploy();
 
   await cErc20.deployed();
 
