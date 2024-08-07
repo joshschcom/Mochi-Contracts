@@ -175,6 +175,112 @@ The Comptroller is the risk management layer; it determines how much collateral 
 
 The Comptroller maps user balances to prices (via the Price Oracle) to risk weights (called Collateral Factors) to make its determinations. Users explicitly list which assets they would like included in their risk scoring, by calling Enter Markets and Exit Market.
 
+-Write Functions-
+
+#### Enter Markets
+
+Enter into a list of markets - it is not an error to enter the same market more than once. In order to supply collateral or borrow in a market, it must be entered first.
+
+`function enterMarkets(address[] calldata cTokens) returns (uint[] memory)`
+
+msg.sender: The account which shall enter the given markets.
+cTokens: The addresses of the cToken markets to enter.
+RETURN: For each market, returns an error code indicating whether or not it was entered. Each is 0 on success, otherwise an Error code.
+
+#### Exit Market
+
+Exit a market - it is not an error to exit a market which is not currently entered. Exited markets will not count towards account liquidity calculations.
+
+`function exitMarket(address cToken) returns (uint)`
+
+msg.sender: The account which shall exit the given market.
+cTokens: The addresses of the cToken market to exit.
+RETURN: 0 on success, otherwise an Error code.
+
+-Read Functions-
+
+#### Get Assets In
+
+Get the list of assets in the market.
+
+`function getAssetsIn(address account) view returns (address[] memory)`
+
+account: The account whose list of entered markets shall be queried.
+RETURN: The address of each market which is currently entered into
+
+#### Collateral Factor
+
+A cToken’s collateral factor can range from 0-90%, and represents the proportionate increase in liquidity (borrow limit) that an account receives by minting the cToken. Generally, large or liquid assets have high collateral factors, while small or illiquid assets have low collateral factors. If an asset has a 0% collateral factor, it can’t be used as collateral (or seized in liquidation), though it can still be borrowed.
+
+`function markets(address cTokenAddress) view returns (bool, uint, bool)`
+
+cTokenAddress: The address of the cToken to check if listed and get the collateral factor for.
+RETURN: Tuple of values (isListed, collateralFactorMantissa, isComped); isListed represents whether the comptroller recognizes this cToken; collateralFactorMantissa, scaled by 1e18, is multiplied by a supply balance to determine how much value can be borrowed. The isComped boolean indicates whether or not suppliers and borrowers are distributed COMP tokens.
+
+#### Get Account Liquidity
+
+Account Liquidity represents the USD value borrowable by a user, before it reaches liquidation. Users with a shortfall (negative liquidity) are subject to liquidation, and can’t withdraw or borrow assets until Account Liquidity is positive again.
+
+For each market the user has entered into, their supplied balance is multiplied by the market’s collateral factor, and summed; borrow balances are then subtracted, to equal Account Liquidity. Borrowing an asset reduces Account Liquidity for each USD borrowed; withdrawing an asset reduces Account Liquidity by the asset’s collateral factor times each USD withdrawn.
+
+Because the Protocol exclusively uses unsigned integers, Account Liquidity returns either a surplus or shortfall.
+
+`function getAccountLiquidity(address account) view returns (uint, uint, uint)`
+
+account: The account whose liquidity shall be calculated.
+RETURN: Tuple of values (error, liquidity, shortfall). The error shall be 0 on success, otherwise an error code. A non-zero liquidity value indicates the account has available account liquidity. A non-zero shortfall value indicates the account is currently below his/her collateral requirement and is subject to liquidation. At most one of liquidity or shortfall shall be non-zero.
+
+#### Close Factor
+
+The percent, ranging from 0% to 100%, of a liquidatable account’s borrow that can be repaid in a single liquidate transaction. If a user has multiple borrowed assets, the closeFactor applies to any single borrowed asset, not the aggregated value of a user’s outstanding borrowing.
+
+`function closeFactorMantissa() view returns (uint)`
+
+RETURN: The closeFactor, scaled by 1e18, is multiplied by an outstanding borrow balance to determine how much could be closed.
+
+#### Liquidation Incentive
+
+The additional collateral given to liquidators as an incentive to perform liquidation of underwater accounts. A portion of this is given to the collateral cToken reserves as determined by the seize share. The seize share is assumed to be 0 if the cToken does not have a protocolSeizeShareMantissa constant. For example, if the liquidation incentive is 1.08, and the collateral’s seize share is 1.028, liquidators receive an extra 5.2% of the borrower’s collateral for every unit they close, and the remaining 2.8% is added to the cToken’s reserves.
+
+`function liquidationIncentiveMantissa() view returns (uint)`
+
+RETURN: The liquidationIncentive, scaled by 1e18, is multiplied by the closed borrow amount from the liquidator to determine how much collateral can be seized.
+
+### Distribution Speeds
+
+#### COMP Speed
+
+The “COMP speed” unique to each market is an unsigned integer that specifies the amount of COMP that is distributed, per block, to suppliers and borrowers in each market. This number can be changed for individual markets by calling the \_setCompSpeed method through a successful Compound Governance proposal. The following is the formula for calculating the rate that COMP is distributed to each supported market.
+
+#### COMP Distributed Per Block (All Markets)
+
+The Comptroller contract’s compRate is an unsigned integer that indicates the rate at which the protocol distributes COMP to markets’ suppliers or borrowers, every Ethereum block. The value is the amount of COMP (in wei), per block, allocated for the markets. Note that not every market has COMP distributed to its participants (see Market Metadata). The compRate indicates how much COMP goes to the suppliers or borrowers, so doubling this number shows how much COMP goes to all suppliers and borrowers combined. The code examples implement reading the amount of COMP distributed, per Ethereum block, to all markets.
+
+`uint public compRate;`
+
+#### COMP Distributed Per Block (Single Market)
+
+The Comptroller contract has a mapping called compSpeeds. It maps cToken addresses to an integer of each market’s COMP distribution per Ethereum block. The integer indicates the rate at which the protocol distributes COMP to markets’ suppliers or borrowers. The value is the amount of COMP (in wei), per block, allocated for the market. Note that not every market has COMP distributed to its participants (see Market Metadata). The speed indicates how much COMP goes to the suppliers or the borrowers, so doubling this number shows how much COMP goes to market suppliers and borrowers combined. The code examples implement reading the amount of COMP distributed, per Ethereum block, to a single market.
+
+`mapping(address => uint) public compSpeeds;`
+
+#### Claim COMP
+
+Every Compound user accrues COMP for each block they are supplying to or borrowing from the protocol. Users may call the Comptroller’s claimComp method at any time to transfer COMP accrued to their address.
+
+`// Claim all the COMP accrued by holder in all markets
+function claimComp(address holder) public
+// Claim all the COMP accrued by holder in specific markets
+function claimComp(address holder, CToken[] memory cTokens) public
+// Claim all the COMP accrued by specific holders in specific markets for their supplies and/or borrows
+function claimComp(address[] memory holders, CToken[] memory cTokens, bool borrowers, bool suppliers) public`
+
+#### Market Metadata
+
+The Comptroller contract has an array called getAllMarkets that contains the addresses of each cToken contract. Each address in the getAllMarkets array can be used to fetch a metadata struct in the Comptroller’s markets constant. See the Comptroller Storage contract for the Market struct definition.
+
+`CToken[] public getAllMarkets;`
+
 ### SimplePriceOracle
 
 A simple Oracle which pushes the price to the Comptroller manually.
