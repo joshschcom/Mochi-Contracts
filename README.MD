@@ -169,6 +169,10 @@ Reserves are an accounting entry in each cToken contract that represents a porti
 
 The reserve factor defines the portion of borrower interest that is converted into reserves.
 
+### Unitroller
+
+The Unitroller is the Proxy Contract for the Comptroller. Users have to interact with the Unitroller to interact with the Comptroller.
+
 ### Comptroller
 
 The Comptroller is the risk management layer; it determines how much collateral a user is required to maintain, and whether (and by how much) a user can be liquidated. Each time a user interacts with a cToken, the Comptroller is asked to approve or deny the transaction.
